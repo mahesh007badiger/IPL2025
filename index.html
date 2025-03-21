@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPL Prediction Game</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>IPL 2025 Prediction Game</h1>
+
+    <div id="prediction-form">
+        <h2>Predict the Winner</h2>
+        <label for="name">Your Name:</label>
+        <input type="text" id="name" placeholder="Enter your name">
+        
+        <label for="match">Match:</label>
+        <select id="match">
+            <option value="match1">Team A vs Team B</option>
+            <option value="match2">Team C vs Team D</option>
+            <!-- More matches can be added here -->
+        </select>
+
+        <label for="winner">Your Prediction:</label>
+        <select id="winner">
+            <option value="Team A">Team A</option>
+            <option value="Team B">Team B</option>
+            <!-- Update options dynamically -->
+        </select>
+
+        <button onclick="submitPrediction()">Submit</button>
+    </div>
+
+    <h2>Leaderboard</h2>
+    <table id="leaderboard">
+        <tr>
+            <th>Name</th>
+            <th>Matches Played</th>
+            <th>Matches Won</th>
+            <th>Winning %</th>
+        </tr>
+    </table>
+
+    <script src="script.js"></script>
+</body>
+</html>
