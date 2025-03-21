@@ -1,7 +1,8 @@
+require('dotenv').config();
 const express = require("express");
 const fs = require("fs");
 const cors = require("cors");
-const dotenv = require('dotenv').config();
+// const dotenv = require('dotenv').config();
 
 
 dotenv.config();
