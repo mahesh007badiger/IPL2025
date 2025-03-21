@@ -1,91 +1,110 @@
 require('dotenv').config();
 const express = require("express");
-const fs = require("fs");
+const mongoose = require("mongoose");
 const cors = require("cors");
-// const dotenv = require('dotenv').config();
 
-
-// dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const DATA_FILE = "data.json";
+// MongoDB connection
+const dbURI = process.env.MONGO_URI || "mongodb://localhost:27017/ipl_predictions"; // Replace with MongoDB Atlas URI
+mongoose.connect(dbURI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log("Connected to MongoDB"))
+  .catch(err => console.log("MongoDB connection error:", err));
 
-// Read data.json or create an empty one if it doesn’t exist
-function readData() {
-    if (!fs.existsSync(DATA_FILE)) {
-        fs.writeFileSync(DATA_FILE, JSON.stringify({ predictions: [], results: [] }, null, 2));
-    }
-    return JSON.parse(fs.readFileSync(DATA_FILE));
-}
+// Define Prediction Schema
+const predictionSchema = new mongoose.Schema({
+  name: String,
+  match: String,
+  winner: String
+});
 
-// Save data to JSON
-function writeData(data) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-}
+// Define Result Schema
+const resultSchema = new mongoose.Schema({
+  match: String,
+  winner: String
+});
 
-/**
- * Submit a match prediction
- */
-app.post("/submit-prediction", (req, res) => {
-    const { name, match, winner } = req.body;
-    if (!name || !match || !winner) return res.status(400).json({ error: "Missing fields" });
+// Define Leaderboard Schema
+const leaderboardSchema = new mongoose.Schema({
+  name: String,
+  played: { type: Number, default: 0 },
+  won: { type: Number, default: 0 }
+});
 
-    let data = readData();
-    data.predictions.push({ name, match, winner });
-    writeData(data);
+// Models
+const Prediction = mongoose.model("Prediction", predictionSchema);
+const Result = mongoose.model("Result", resultSchema);
+const Leaderboard = mongoose.model("Leaderboard", leaderboardSchema);
 
+// Routes
+
+// Submit a match prediction
+app.post("/submit-prediction", async (req, res) => {
+  const { name, match, winner } = req.body;
+  if (!name || !match || !winner) return res.status(400).json({ error: "Missing fields" });
+
+  try {
+    const newPrediction = new Prediction({ name, match, winner });
+    await newPrediction.save();
     res.json({ success: true, message: "Prediction saved!" });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to save prediction" });
+  }
 });
 
-/**
- * Fetch all predictions
- */
-app.get("/get-predictions", (req, res) => {
-    const data = readData();
-    res.json(data.predictions);
-});
+// Submit match result (no admin authentication)
+app.post("/submit-result", async (req, res) => {
+  const { match, winner } = req.body;
 
-/**
- * Submit match results
- */
-app.post("/submit-result", (req, res) => {
-    const { match, winner } = req.body;
-    if (!match || !winner) return res.status(400).json({ error: "Missing fields" });
+  // Validate match and winner
+  if (!match || !winner) return res.status(400).json({ error: "Missing fields" });
 
-    let data = readData();
-    data.results.push({ match, winner });
-    writeData(data);
+  try {
+    // Save match result
+    const newResult = new Result({ match, winner });
+    await newResult.save();
 
-    res.json({ success: true, message: "Match result saved!" });
-});
+    // Update leaderboard based on predictions
+    const predictions = await Prediction.find({ match });
 
-/**
- * Fetch leaderboard
- */
-app.get("/leaderboard", (req, res) => {
-    let data = readData();
-    let leaderboard = {};
-
-    data.predictions.forEach(({ name, match, winner }) => {
-        if (!leaderboard[name]) leaderboard[name] = { played: 0, won: 0 };
-        leaderboard[name].played++;
-
-        let actualResult = data.results.find(r => r.match === match);
-        if (actualResult && actualResult.winner === winner) {
-            leaderboard[name].won++;
-        }
+    predictions.forEach(async (prediction) => {
+      if (prediction.winner === winner) {
+        await Leaderboard.findOneAndUpdate(
+          { name: prediction.name },
+          { $inc: { played: 1, won: 1 } },
+          { upsert: true }
+        );
+      } else {
+        await Leaderboard.findOneAndUpdate(
+          { name: prediction.name },
+          { $inc: { played: 1 } },
+          { upsert: true }
+        );
+      }
     });
 
-    let leaderboardArray = Object.entries(leaderboard).map(([name, stats]) => ({
-        name,
-        played: stats.played,
-        won: stats.won,
-        percentage: stats.played ? ((stats.won / stats.played) * 100).toFixed(2) : 0,
-    }));
+    res.json({ success: true, message: "Match result saved!" });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to save result" });
+  }
+});
 
-    res.json(leaderboardArray);
+// Get leaderboard
+app.get("/leaderboard", async (req, res) => {
+  try {
+    const leaderboard = await Leaderboard.find().sort({ percentage: -1 });
+
+    // Calculate winning percentage
+    leaderboard.forEach(player => {
+      player.percentage = player.played ? ((player.won / player.played) * 100).toFixed(2) : 0;
+    });
+
+    res.json(leaderboard);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch leaderboard" });
+  }
 });
 
 // Start server
