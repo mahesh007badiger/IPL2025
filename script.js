@@ -1,4 +1,5 @@
-const API_URL = "http://localhost:5000"; // Update when deploying
+const API_URL = "https://ipl-predictions.onrender.com";
+
 
 async function submitPrediction() {
     let name = document.getElementById("name").value;
