@@ -1,126 +1,62 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IPL Prediction</title>
-  <link rel="stylesheet" href="style.css"> <!-- Link to external CSS file -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPL 2025 Predictions</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="container">
-    <!-- Login/Register Section -->
-    <div id="auth-section">
-      <h2>Welcome to IPL Prediction</h2>
-      <button onclick="showLogin()">Login</button>
-      <button onclick="showRegister()">Register</button>
+    <div id="auth-container">
+        <!-- Login Form -->
+        <div id="login-section">
+            <h2>Login</h2>
+            <input type="email" id="login-email" placeholder="Email" required>
+            <input type="password" id="login-password" placeholder="Password" required>
+            <button onclick="login()">Login</button>
+            <p>Don't have an account? <a href="#" onclick="toggleAuth()">Register here</a></p>
+        </div>
+
+        <!-- Registration Form -->
+        <div id="register-section" style="display: none;">
+            <h2>Register</h2>
+            <input type="text" id="register-name" placeholder="Name" required>
+            <input type="email" id="register-email" placeholder="Email" required>
+            <input type="password" id="register-password" placeholder="Password" required>
+            <button onclick="register()">Register</button>
+            <p>Already have an account? <a href="#" onclick="toggleAuth()">Login here</a></p>
+        </div>
     </div>
 
-    <!-- Login Form -->
-    <div id="login-form" class="hidden">
-      <h2>Login</h2>
-      <form id="loginForm">
-        <input type="email" id="loginEmail" placeholder="Email" required><br><br>
-        <input type="password" id="loginPassword" placeholder="Password" required><br><br>
-        <button type="submit">Login</button>
-        <button type="button" onclick="hideLogin()">Cancel</button>
-      </form>
+    <!-- After Login -->
+    <div id="dashboard" style="display: none;">
+        <h1>Welcome, <span id="user-name"></span>!</h1>
+        <button onclick="logout()">Logout</button>
+
+        <!-- Leaderboard -->
+        <h2>Leaderboard</h2>
+        <table id="leaderboard">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Wins</th>
+                    <th>Winning %</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <!-- User History -->
+        <h2>Your Predictions</h2>
+        <ul id="user-history"></ul>
+
+        <!-- Prediction Form -->
+        <h2>Today's Match Prediction</h2>
+        <p id="match-info"></p>
+        <select id="team-selection"></select>
+        <button onclick="submitPrediction()">Submit Prediction</button>
     </div>
 
-    <!-- Register Form -->
-    <div id="register-form" class="hidden">
-      <h2>Register</h2>
-      <form id="registerForm">
-        <input type="text" id="registerName" placeholder="Name" required><br><br>
-        <input type="email" id="registerEmail" placeholder="Email" required><br><br>
-        <input type="password" id="registerPassword" placeholder="Password" required><br><br>
-        <button type="submit">Register</button>
-        <button type="button" onclick="hideRegister()">Cancel</button>
-      </form>
-    </div>
-
-    <!-- Prediction Page (Hidden by Default) -->
-    <div id="prediction-page" class="hidden">
-      <h2>Prediction Page</h2>
-      <p>Welcome to the prediction page! More features will be added here.</p>
-      <button onclick="logout()">Logout</button>
-    </div>
-  </div>
-
-  <script>
-    // Check if user is already logged in (e.g., from localStorage)
-    const user = localStorage.getItem('user');
-    if (user) {
-      showPredictionPage();
-    }
-
-    // Show Login Form
-    function showLogin() {
-      document.getElementById('auth-section').classList.add('hidden');
-      document.getElementById('login-form').classList.remove('hidden');
-    }
-
-    // Hide Login Form
-    function hideLogin() {
-      document.getElementById('auth-section').classList.remove('hidden');
-      document.getElementById('login-form').classList.add('hidden');
-    }
-
-    // Show Register Form
-    function showRegister() {
-      document.getElementById('auth-section').classList.add('hidden');
-      document.getElementById('register-form').classList.remove('hidden');
-    }
-
-    // Hide Register Form
-    function hideRegister() {
-      document.getElementById('auth-section').classList.remove('hidden');
-      document.getElementById('register-form').classList.add('hidden');
-    }
-
-    // Show Prediction Page
-    function showPredictionPage() {
-      document.getElementById('auth-section').classList.add('hidden');
-      document.getElementById('login-form').classList.add('hidden');
-      document.getElementById('register-form').classList.add('hidden');
-      document.getElementById('prediction-page').classList.remove('hidden');
-    }
-
-    // Logout Function
-    function logout() {
-      localStorage.removeItem('user');
-      window.location.reload(); // Reload the page to show the login/register section
-    }
-
-    // Handle Login Form Submission
-    document.getElementById('loginForm').addEventListener('submit', function (e) {
-      e.preventDefault();
-      const email = document.getElementById('loginEmail').value;
-      const password = document.getElementById('loginPassword').value;
-
-      // Simulate login (replace with actual API call to MongoDB)
-      if (email && password) {
-        localStorage.setItem('user', email); // Store user email in localStorage
-        showPredictionPage();
-      } else {
-        alert('Please enter valid credentials.');
-      }
-    });
-
-    // Handle Register Form Submission
-    document.getElementById('registerForm').addEventListener('submit', function (e) {
-      e.preventDefault();
-      const name = document.getElementById('registerName').value;
-      const email = document.getElementById('registerEmail').value;
-      const password = document.getElementById('registerPassword').value;
-
-      // Simulate registration (replace with actual API call to MongoDB)
-      if (name && email && password) {
-        localStorage.setItem('user', email); // Store user email in localStorage
-        showPredictionPage();
-      } else {
-        alert('Please fill out all fields.');
-      }
-    });
-  </script>
+    <script src="script.js"></script>
 </body>
 </html>
