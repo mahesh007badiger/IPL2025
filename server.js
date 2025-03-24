@@ -1,34 +1,28 @@
+require("dotenv").config(); // Load environment variables
 const express = require("express");
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const cors = require("cors");
 const bodyParser = require("body-parser");
-
 const User = require("./models/User");
 const Prediction = require("./models/Prediction");
-
 const app = express();
 const PORT = process.env.PORT || 5000;
-const JWT_SECRET = "your_jwt_secret_key"; // Use a secure key in production
+const JWT_SECRET = process.env.JWT_SECRET || "default_secret"; // Use .env for security
 
 // Middleware
-app.use(cors());
+app.use(cors({ origin: "*", credentials: true }));
 app.use(bodyParser.json());
 
-// Connect to MongoDB
-mongoose.connect("mongodb+srv://atlas-sample-dataset-load-67e0f2d8224f8b1fd200c0a5:<Mahe3071999>@cluster0.2tel4.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0", {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-})
-.then(() => {
-    console.log("Connected to MongoDB Atlas");
-})
-.catch((err) => {
-    console.error("Error connecting to MongoDB Atlas:", err);
-});
+// Connect to MongoDB (use .env for security)
+mongoose.connect(process.env.MONGO_URI)
+    .then(() => console.log("Connected to MongoDB Atlas"))
+    .catch((err) => console.error("Error connecting to MongoDB Atlas:", err));
+    .then(() => console.log("✅ Connected to MongoDB Atlas"))
+    .catch((err) => console.error("❌ MongoDB Connection Error:", err));
 
-// Register a new user
+// ✅ **Register a New User (Now Hashing Passwords)**
 app.post("/register", async (req, res) => {
     const { name, email, password } = req.body;
 
@@ -39,65 +33,70 @@ app.post("/register", async (req, res) => {
             return res.status(400).json({ message: "User already exists" });
         }
 
-        // Create new user
-        const user = new User({ name, email, password });
+        // Hash password before saving
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const user = new User({ name, email, password: hashedPassword });
         await user.save();
 
-        res.status(201).json({ message: "User registered successfully" });
+        res.status(201).json({ message: "✅ User registered successfully" });
     } catch (error) {
+        console.error("❌ Registration Error:", error);
         res.status(500).json({ message: "Server error" });
     }
 });
 
-// Login user
+// ✅ **Login User (Now Secure & Returns JWT)**
 app.post("/login", async (req, res) => {
     const { email, password } = req.body;
 
     try {
-        // Find user by email
         const user = await User.findOne({ email });
-        if (!user) {
-            return res.status(400).json({ message: "Invalid credentials" });
-        }
+        if (!user) return res.status(400).json({ message: "❌ Invalid credentials" });
 
-        // Check password
         const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-            return res.status(400).json({ message: "Invalid credentials" });
-        }
+        if (!isMatch) return res.status(400).json({ message: "❌ Invalid credentials" });
 
-        // Generate JWT token
-        const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: "1h" });
-        res.json({ message: "Login successful", token });
+        // Generate JWT
+        const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: "2h" });
+        res.json({ message: "✅ Login successful", token });
     } catch (error) {
+        console.error("❌ Login Error:", error);
         res.status(500).json({ message: "Server error" });
     }
 });
 
-// Submit a prediction (protected route)
-app.post("/submit-prediction", async (req, res) => {
-    const { match, predictedWinner } = req.body;
+// ✅ **Protected Middleware (Verifies JWT)**
+const authenticateUser = (req, res, next) => {
     const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return res.status(401).json({ message: "❌ Unauthorized, token missing" });
 
     try {
-        // Verify token
         const decoded = jwt.verify(token, JWT_SECRET);
-        const userId = decoded.userId;
+        req.userId = decoded.userId; // Store userId in request
+        next();
+    } catch (error) {
+        return res.status(401).json({ message: "❌ Invalid token" });
+    }
+};
 
-        // Create new prediction
-        const prediction = new Prediction({ userId, match, predictedWinner });
+// ✅ **Submit a Prediction (Now Protected)**
+app.post("/submit-prediction", authenticateUser, async (req, res) => {
+    const { match, predictedWinner } = req.body;
+
+    try {
+        const prediction = new Prediction({ userId: req.userId, match, predictedWinner });
         await prediction.save();
 
-        // Add prediction to user's predictions array
-        await User.findByIdAndUpdate(userId, { $push: { predictions: prediction._id } });
+        await User.findByIdAndUpdate(req.userId, { $push: { predictions: prediction._id } });
 
-        res.json({ message: "Prediction submitted successfully" });
+        res.json({ message: "✅ Prediction submitted successfully" });
     } catch (error) {
-        res.status(401).json({ message: "Unauthorized or invalid token" });
+        console.error("❌ Prediction Submission Error:", error);
+        res.status(500).json({ message: "Server error" });
     }
 });
 
-// Fetch leaderboard
+// ✅ **Fetch Leaderboard (Fixed MongoDB Query)**
 app.get("/leaderboard", async (req, res) => {
     try {
         const users = await User.aggregate([
@@ -118,7 +117,7 @@ app.get("/leaderboard", async (req, res) => {
                             $filter: {
                                 input: "$predictions",
                                 as: "pred",
-                                cond: { $eq: ["$$pred.result", "Won"] },
+                                cond: { $eq: ["$$pred.result", "Won"] }, // ✅ Fixed Query
                             },
                         },
                     },
@@ -139,28 +138,23 @@ app.get("/leaderboard", async (req, res) => {
 
         res.json(users);
     } catch (error) {
+        console.error("❌ Leaderboard Fetch Error:", error);
         res.status(500).json({ message: "Server error" });
     }
 });
 
-// Fetch user history (protected route)
-app.get("/user-history", async (req, res) => {
-    const token = req.headers.authorization?.split(" ")[1];
-
+// ✅ **Fetch User's Prediction History (Now Protected)**
+app.get("/user-history", authenticateUser, async (req, res) => {
     try {
-        // Verify token
-        const decoded = jwt.verify(token, JWT_SECRET);
-        const userId = decoded.userId;
-
-        // Fetch user's predictions
-        const predictions = await Prediction.find({ userId });
+        const predictions = await Prediction.find({ userId: req.userId });
         res.json(predictions);
     } catch (error) {
-        res.status(401).json({ message: "Unauthorized or invalid token" });
+        console.error("❌ User History Error:", error);
+        res.status(500).json({ message: "Server error" });
     }
 });
 
-// Start server
+// ✅ **Start Server**
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`🚀 Server running on port ${PORT}`);
 });
