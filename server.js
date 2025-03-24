@@ -19,26 +19,6 @@ mongoose.connect("your_mongodb_connection", { useNewUrlParser: true, useUnifiedT
 // Prevent duplicate registration
 app.post("/register", async (req, res) => {
     const { name, email, password } = req.body;
-    if (await User.findOne({ email })) return res.status(400).json({ message: "Email already registered!" });
-
-    const user = new User({ name, email, password: await bcrypt.hash(password, 10) });
-    await user.save();
-    res.json({ message: "Registration successful" });
-});
-
-// Fetch IPL schedule (Assume it's stored in `ipl_schedule.json`)
-app.get("/schedule", (req, res) => {
-    res.sendFile(__dirname + "/ipl_schedule.json");
-});
-
-// Other API routes remain the same...
-
-app.listen(PORT, () => console.log(`Server running on ${PORT}`));
-
-
-// ✅ **Register a New User (Now Hashing Passwords)**
-app.post("/register", async (req, res) => {
-    const { name, email, password } = req.body;
 
     try {
         // Check if user already exists
@@ -47,14 +27,15 @@ app.post("/register", async (req, res) => {
             return res.status(400).json({ message: "User already exists" });
         }
 
-        // Hash password before saving
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const user = new User({ name, email, password: hashedPassword });
+        // Create new user
+        const user = new User({ name, email, password });
         await user.save();
 
-        res.status(201).json({ message: "✅ User registered successfully" });
+        // Generate JWT token
+        const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: "1h" });
+
+        res.status(201).json({ message: "User registered successfully", token });
     } catch (error) {
-        console.error("❌ Registration Error:", error);
         res.status(500).json({ message: "Server error" });
     }
 });
