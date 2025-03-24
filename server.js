@@ -1,112 +1,160 @@
-require('dotenv').config();
 const express = require("express");
 const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 const cors = require("cors");
+const bodyParser = require("body-parser");
+
+const User = require("./models/User");
+const Prediction = require("./models/Prediction");
 
 const app = express();
+const PORT = process.env.PORT || 5000;
+const JWT_SECRET = "your_jwt_secret_key"; // Use a secure key in production
+
+// Middleware
 app.use(cors());
-app.use(express.json());
+app.use(bodyParser.json());
 
-// MongoDB connection
-const dbURI = process.env.MONGO_URI || "mongodb://localhost:27017/ipl_predictions"; // Replace with MongoDB Atlas URI
-mongoose.connect(dbURI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log("Connected to MongoDB"))
-  .catch(err => console.log("MongoDB connection error:", err));
-
-// Define Prediction Schema
-const predictionSchema = new mongoose.Schema({
-  name: String,
-  match: String,
-  winner: String
+// Connect to MongoDB
+mongoose.connect("mongodb://localhost:27017/ipl-predictions", {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
 });
 
-// Define Result Schema
-const resultSchema = new mongoose.Schema({
-  match: String,
-  winner: String
+// Register a new user
+app.post("/register", async (req, res) => {
+    const { name, email, password } = req.body;
+
+    try {
+        // Check if user already exists
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            return res.status(400).json({ message: "User already exists" });
+        }
+
+        // Create new user
+        const user = new User({ name, email, password });
+        await user.save();
+
+        res.status(201).json({ message: "User registered successfully" });
+    } catch (error) {
+        res.status(500).json({ message: "Server error" });
+    }
 });
 
-// Define Leaderboard Schema
-const leaderboardSchema = new mongoose.Schema({
-  name: String,
-  played: { type: Number, default: 0 },
-  won: { type: Number, default: 0 }
+// Login user
+app.post("/login", async (req, res) => {
+    const { email, password } = req.body;
+
+    try {
+        // Find user by email
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(400).json({ message: "Invalid credentials" });
+        }
+
+        // Check password
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ message: "Invalid credentials" });
+        }
+
+        // Generate JWT token
+        const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: "1h" });
+        res.json({ message: "Login successful", token });
+    } catch (error) {
+        res.status(500).json({ message: "Server error" });
+    }
 });
 
-// Models
-const Prediction = mongoose.model("Prediction", predictionSchema);
-const Result = mongoose.model("Result", resultSchema);
-const Leaderboard = mongoose.model("Leaderboard", leaderboardSchema);
-
-// Routes
-
-// Submit a match prediction
+// Submit a prediction (protected route)
 app.post("/submit-prediction", async (req, res) => {
-  const { name, match, winner } = req.body;
-  if (!name || !match || !winner) return res.status(400).json({ error: "Missing fields" });
+    const { match, predictedWinner } = req.body;
+    const token = req.headers.authorization?.split(" ")[1];
 
-  try {
-    const newPrediction = new Prediction({ name, match, winner });
-    await newPrediction.save();
-    res.json({ success: true, message: "Prediction saved!" });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to save prediction" });
-  }
+    try {
+        // Verify token
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const userId = decoded.userId;
+
+        // Create new prediction
+        const prediction = new Prediction({ userId, match, predictedWinner });
+        await prediction.save();
+
+        // Add prediction to user's predictions array
+        await User.findByIdAndUpdate(userId, { $push: { predictions: prediction._id } });
+
+        res.json({ message: "Prediction submitted successfully" });
+    } catch (error) {
+        res.status(401).json({ message: "Unauthorized or invalid token" });
+    }
 });
 
-// Submit match result (no admin authentication)
-app.post("/submit-result", async (req, res) => {
-  const { match, winner } = req.body;
-
-  // Validate match and winner
-  if (!match || !winner) return res.status(400).json({ error: "Missing fields" });
-
-  try {
-    // Save match result
-    const newResult = new Result({ match, winner });
-    await newResult.save();
-
-    // Update leaderboard based on predictions
-    const predictions = await Prediction.find({ match });
-
-    predictions.forEach(async (prediction) => {
-      if (prediction.winner === winner) {
-        await Leaderboard.findOneAndUpdate(
-          { name: prediction.name },
-          { $inc: { played: 1, won: 1 } },
-          { upsert: true }
-        );
-      } else {
-        await Leaderboard.findOneAndUpdate(
-          { name: prediction.name },
-          { $inc: { played: 1 } },
-          { upsert: true }
-        );
-      }
-    });
-
-    res.json({ success: true, message: "Match result saved!" });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to save result" });
-  }
-});
-
-// Get leaderboard
+// Fetch leaderboard
 app.get("/leaderboard", async (req, res) => {
-  try {
-    const leaderboard = await Leaderboard.find().sort({ percentage: -1 });
+    try {
+        const users = await User.aggregate([
+            {
+                $lookup: {
+                    from: "predictions",
+                    localField: "predictions",
+                    foreignField: "_id",
+                    as: "predictions",
+                },
+            },
+            {
+                $project: {
+                    name: 1,
+                    played: { $size: "$predictions" },
+                    won: {
+                        $size: {
+                            $filter: {
+                                input: "$predictions",
+                                as: "pred",
+                                cond: { $eq: ["$$pred.result", "Won"] },
+                            },
+                        },
+                    },
+                },
+            },
+            {
+                $addFields: {
+                    percentage: {
+                        $cond: {
+                            if: { $eq: ["$played", 0] },
+                            then: 0,
+                            else: { $multiply: [{ $divide: ["$won", "$played"] }, 100] },
+                        },
+                    },
+                },
+            },
+        ]);
 
-    // Calculate winning percentage
-    leaderboard.forEach(player => {
-      player.percentage = player.played ? ((player.won / player.played) * 100).toFixed(2) : 0;
-    });
+        res.json(users);
+    } catch (error) {
+        res.status(500).json({ message: "Server error" });
+    }
+});
 
-    res.json(leaderboard);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch leaderboard" });
-  }
+// Fetch user history (protected route)
+app.get("/user-history", async (req, res) => {
+    const token = req.headers.authorization?.split(" ")[1];
+
+    try {
+        // Verify token
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const userId = decoded.userId;
+
+        // Fetch user's predictions
+        const predictions = await Prediction.find({ userId });
+        res.json(predictions);
+    } catch (error) {
+        res.status(401).json({ message: "Unauthorized or invalid token" });
+    }
 });
 
 // Start server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
