@@ -1,43 +1,126 @@
+/* General Styling */
 body {
-    font-family: Arial, sans-serif;
+    font-family: 'Poppins', Arial, sans-serif;
     text-align: center;
-}
-
-h1, h2 {
+    background-color: #f4f4f4;
     color: #2C3E50;
+    margin: 0;
+    padding: 0;
 }
 
+/* Headings */
+h1 {
+    font-size: 2.5rem;
+    color: #1A5276;
+    margin-top: 20px;
+    text-transform: uppercase;
+}
+
+h2 {
+    font-size: 1.8rem;
+    color: #34495E;
+    margin-top: 15px;
+}
+
+/* Form Styling */
 #prediction-form {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    width: 90%;
+    max-width: 350px;
     margin: 20px auto;
-    width: 300px;
     text-align: left;
 }
 
 label {
     display: block;
+    font-weight: 600;
     margin-top: 10px;
+    color: #2C3E50;
 }
 
-input, select, button {
+/* Input Fields */
+input, select {
     width: 100%;
-    padding: 10px;
+    padding: 12px;
     margin-top: 5px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 1rem;
+    background-color: #f9f9f9;
+    transition: all 0.3s ease-in-out;
 }
 
+input:focus, select:focus {
+    border-color: #27AE60;
+    background-color: #fff;
+    outline: none;
+}
+
+/* Buttons */
 button {
-    background-color: #27AE60;
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(90deg, #27AE60, #2ECC71);
     color: white;
+    font-size: 1rem;
     border: none;
+    border-radius: 6px;
     cursor: pointer;
+    margin-top: 10px;
+    transition: all 0.3s ease-in-out;
 }
 
+button:hover {
+    background: linear-gradient(90deg, #2ECC71, #27AE60);
+    transform: scale(1.05);
+}
+
+/* Table Styling */
 table {
     margin: auto;
-    width: 80%;
+    width: 90%;
+    max-width: 800px;
     border-collapse: collapse;
+    background: white;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    overflow: hidden;
 }
 
-th, td {
-    border: 1px solid #ccc;
-    padding: 10px;
+th {
+    background: #1A5276;
+    color: white;
+    padding: 12px;
+    text-transform: uppercase;
+}
+
+td {
+    padding: 12px;
+    border: 1px solid #ddd;
+}
+
+tr:nth-child(even) {
+    background: #f9f9f9;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    #prediction-form {
+        width: 95%;
+    }
+
+    table {
+        width: 100%;
+    }
+
+    h1 {
+        font-size: 2rem;
+    }
+
+    h2 {
+        font-size: 1.5rem;
+    }
 }
