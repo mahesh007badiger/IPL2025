@@ -1,132 +1,116 @@
 const API_URL = "https://ipl-predictions.onrender.com";
 
-// Registration function
-async function registerUser() {
-    let name = document.getElementById("reg-name").value;
-    let email = document.getElementById("reg-email").value;
-    let password = document.getElementById("reg-password").value;
+// Toggle between login and register forms
+function toggleAuth() {
+    document.getElementById("login-section").style.display = 
+        document.getElementById("login-section").style.display === "none" ? "block" : "none";
+    document.getElementById("register-section").style.display = 
+        document.getElementById("register-section").style.display === "none" ? "block" : "none";
+}
 
-    // Validate inputs
-    if (!name || !email || !password) {
-        alert("All fields are required for registration!");
-        return;
-    }
+// Register User
+async function register() {
+    const name = document.getElementById("register-name").value;
+    const email = document.getElementById("register-email").value;
+    const password = document.getElementById("register-password").value;
 
-    // Submit registration to the back-end
-    let response = await fetch(`${API_URL}/register`, {
+    const res = await fetch(`${API_BASE}/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password })
     });
 
-    let result = await response.json();
+    const data = await res.json();
+    alert(data.message);
+}
 
-    // Display result message
-    alert(result.message);
+// Login User
+async function login() {
+    const email = document.getElementById("login-email").value;
+    const password = document.getElementById("login-password").value;
 
-    // Redirect to login page or prediction page after registration
-    if (response.ok) {
-        window.location.href = "login.html"; // Redirect to login page
+    const res = await fetch(`${API_BASE}/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password })
+    });
+
+    const data = await res.json();
+
+    if (data.token) {
+        localStorage.setItem("token", data.token);
+        loadDashboard();
+    } else {
+        alert(data.message);
     }
 }
 
-// Login function
-async function loginUser() {
-    let email = document.getElementById("login-email").value;
-    let password = document.getElementById("login-password").value;
+// Load Dashboard after Login
+async function loadDashboard() {
+    const token = localStorage.getItem("token");
+    if (!token) return;
 
-    // Validate inputs
-    if (!email || !password) {
-        alert("Email and password are required!");
-        return;
-    }
+    document.getElementById("auth-container").style.display = "none";
+    document.getElementById("dashboard").style.display = "block";
 
-    // Submit login to the back-end
-    let response = await fetch(`${API_URL}/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+    // Fetch Leaderboard
+    const leaderboardRes = await fetch(`${API_BASE}/leaderboard`);
+    const leaderboardData = await leaderboardRes.json();
+    document.getElementById("leaderboard").querySelector("tbody").innerHTML = leaderboardData.map(
+        user => `<tr><td>${user.name}</td><td>${user.won}</td><td>${user.percentage.toFixed(2)}%</td></tr>`
+    ).join("");
+
+    // Fetch User History
+    const historyRes = await fetch(`${API_BASE}/user-history`, {
+        headers: { "Authorization": `Bearer ${token}` }
     });
+    const historyData = await historyRes.json();
+    document.getElementById("user-history").innerHTML = historyData.map(
+        pred => `<li>${pred.match} - ${pred.predictedWinner} (${pred.result})</li>`
+    ).join("");
 
-    let result = await response.json();
+    // Fetch IPL Schedule & Show Today’s Match
+    const scheduleRes = await fetch(`${API_BASE}/schedule`);
+    const scheduleData = await scheduleRes.json();
+    const todayMatch = scheduleData.find(match => match.date === new Date().toISOString().split("T")[0]);
 
-    // Display result message
-    alert(result.message);
-
-    // Redirect to prediction page after successful login
-    if (response.ok) {
-        localStorage.setItem("userToken", result.token); // Store token for future requests
-        window.location.href = "predictions.html"; // Redirect to predictions page
+    if (todayMatch) {
+        document.getElementById("match-info").innerText = `${todayMatch.team1} vs ${todayMatch.team2}`;
+        document.getElementById("team-selection").innerHTML = `
+            <option value="${todayMatch.team1}">${todayMatch.team1}</option>
+            <option value="${todayMatch.team2}">${todayMatch.team2}</option>
+        `;
+    } else {
+        document.getElementById("match-info").innerText = "No match today!";
     }
 }
 
-// Submit prediction (updated to include user token)
+// Submit Prediction
 async function submitPrediction() {
-    let match = document.getElementById("match").value;
-    let winner = document.getElementById("winner").value;
-    let token = localStorage.getItem("userToken");
+    const token = localStorage.getItem("token");
+    if (!token) return;
 
-    // Validate inputs
-    if (!match || !winner || !token) {
-        alert("All fields are required, and you must be logged in!");
-        return;
-    }
+    const match = document.getElementById("match-info").innerText;
+    const predictedWinner = document.getElementById("team-selection").value;
 
-    // Submit prediction to the back-end
-    let response = await fetch(`${API_URL}/submit-prediction`, {
+    const res = await fetch(`${API_BASE}/submit-prediction`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ match, winner }),
+        headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ match, predictedWinner })
     });
 
-    let result = await response.json();
-
-    // Display result message
-    alert(result.message);
+    const data = await res.json();
+    alert(data.message);
 }
 
-// Fetch leaderboard and display it (updated to include user history)
-async function fetchLeaderboard() {
-    let token = localStorage.getItem("userToken");
-
-    // Fetch leaderboard data
-    let response = await fetch(`${API_URL}/leaderboard`, {
-        headers: { "Authorization": `Bearer ${token}` },
-    });
-    let data = await response.json();
-
-    // Get the table element and populate it with leaderboard data
-    let table = document.getElementById("leaderboard");
-    table.innerHTML = "<tr><th>Name</th><th>Matches Played</th><th>Matches Won</th><th>Winning %</th></tr>";
-
-    data.forEach(player => {
-        let row = table.insertRow();
-        row.insertCell(0).innerText = player.name;
-        row.insertCell(1).innerText = player.played;
-        row.insertCell(2).innerText = player.won;
-        row.insertCell(3).innerText = player.percentage + "%";
-    });
-
-    // Fetch user history
-    let historyResponse = await fetch(`${API_URL}/user-history`, {
-        headers: { "Authorization": `Bearer ${token}` },
-    });
-    let historyData = await historyResponse.json();
-
-    // Display user history
-    let historyTable = document.getElementById("user-history");
-    historyTable.innerHTML = "<tr><th>Match</th><th>Predicted Winner</th><th>Actual Winner</th><th>Result</th></tr>";
-
-    historyData.forEach(entry => {
-        let row = historyTable.insertRow();
-        row.insertCell(0).innerText = entry.match;
-        row.insertCell(1).innerText = entry.predictedWinner;
-        row.insertCell(2).innerText = entry.actualWinner;
-        row.insertCell(3).innerText = entry.result;
-    });
+// Logout
+function logout() {
+    localStorage.removeItem("token");
+    window.location.reload();
 }
 
-// Refresh leaderboard and user history when the page loads
-document.addEventListener("DOMContentLoaded", function () {
-    fetchLeaderboard();
-});
+// Auto Load Dashboard if Logged In
+if (localStorage.getItem("token")) loadDashboard();
