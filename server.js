@@ -1,26 +1,40 @@
-require("dotenv").config(); // Load environment variables
 const express = require("express");
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const cors = require("cors");
-const bodyParser = require("body-parser");
+
 const User = require("./models/User");
 const Prediction = require("./models/Prediction");
+
 const app = express();
 const PORT = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || "default_secret"; // Use .env for security
+const JWT_SECRET = "your_secret_key";
 
-// Middleware
-app.use(cors({ origin: "*", credentials: true }));
-app.use(bodyParser.json());
+app.use(cors());
+app.use(express.json());
 
-// Connect to MongoDB (use .env for security)
-mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log("Connected to MongoDB Atlas"))
-    .catch((err) => console.error("Error connecting to MongoDB Atlas:", err));
-    .then(() => console.log("✅ Connected to MongoDB Atlas"))
-    .catch((err) => console.error("❌ MongoDB Connection Error:", err));
+mongoose.connect("your_mongodb_connection", { useNewUrlParser: true, useUnifiedTopology: true });
+
+// Prevent duplicate registration
+app.post("/register", async (req, res) => {
+    const { name, email, password } = req.body;
+    if (await User.findOne({ email })) return res.status(400).json({ message: "Email already registered!" });
+
+    const user = new User({ name, email, password: await bcrypt.hash(password, 10) });
+    await user.save();
+    res.json({ message: "Registration successful" });
+});
+
+// Fetch IPL schedule (Assume it's stored in `ipl_schedule.json`)
+app.get("/schedule", (req, res) => {
+    res.sendFile(__dirname + "/ipl_schedule.json");
+});
+
+// Other API routes remain the same...
+
+app.listen(PORT, () => console.log(`Server running on ${PORT}`));
+
 
 // ✅ **Register a New User (Now Hashing Passwords)**
 app.post("/register", async (req, res) => {
