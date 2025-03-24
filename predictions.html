@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predictions</title>
+</head>
+<body>
+    <h1>Match Predictions</h1>
+    <form id="prediction-form">
+        <label for="match">Match:</label>
+        <input type="text" id="match" required><br>
+        <label for="winner">Predicted Winner:</label>
+        <input type="text" id="winner" required><br>
+        <button type="button" onclick="submitPrediction()">Submit Prediction</button>
+    </form>
+
+    <h2>Leaderboard</h2>
+    <table id="leaderboard"></table>
+
+    <h2>Your Prediction History</h2>
+    <table id="user-history"></table>
+
+    <script src="script.js"></script>
+</body>
+</html>
