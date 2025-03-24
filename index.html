@@ -7,7 +7,57 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>Welcome to IPL 2025 Predictions</h1>
-    <p>Please <a href="login.html">login</a> to continue.</p>
+    <header>
+        <h1>IPL 2025 Predictions</h1>
+        <nav>
+            <a href="login.html" class="btn">Login</a>
+            <a href="register.html" class="btn">Register</a>
+        </nav>
+    </header>
+
+    <main>
+        <section class="intro">
+            <h2>Make Your Predictions</h2>
+            <p>Join the fun! Predict match winners, compete with friends, and track your score.</p>
+        </section>
+
+        <section id="prediction-form">
+            <h2>Submit Your Prediction</h2>
+            <label for="team">Select Team:</label>
+            <select id="team">
+                <option value="MI">Mumbai Indians</option>
+                <option value="CSK">Chennai Super Kings</option>
+                <option value="RCB">Royal Challengers Bangalore</option>
+                <option value="KKR">Kolkata Knight Riders</option>
+            </select>
+
+            <button>Submit Prediction</button>
+        </section>
+
+        <section>
+            <h2>Leaderboard</h2>
+            <table>
+                <tr>
+                    <th>User</th>
+                    <th>Team</th>
+                    <th>Points</th>
+                </tr>
+                <tr>
+                    <td>Alice</td>
+                    <td>MI</td>
+                    <td>10</td>
+                </tr>
+                <tr>
+                    <td>Bob</td>
+                    <td>RCB</td>
+                    <td>15</td>
+                </tr>
+            </table>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 IPL Predictions. All rights reserved.</p>
+    </footer>
 </body>
 </html>
