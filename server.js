@@ -17,9 +17,15 @@ app.use(cors());
 app.use(bodyParser.json());
 
 // Connect to MongoDB
-mongoose.connect("mongodb://localhost:27017/ipl-predictions", {
+mongoose.connect("mongodb+srv://atlas-sample-dataset-load-67e0f2d8224f8b1fd200c0a5:<Mahe3071999>@cluster0.2tel4.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0", {
     useNewUrlParser: true,
     useUnifiedTopology: true,
+})
+.then(() => {
+    console.log("Connected to MongoDB Atlas");
+})
+.catch((err) => {
+    console.error("Error connecting to MongoDB Atlas:", err);
 });
 
 // Register a new user
